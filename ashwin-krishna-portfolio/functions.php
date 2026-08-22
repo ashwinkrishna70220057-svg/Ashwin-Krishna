@@ -3,7 +3,7 @@
  * Ashwin Krishna Portfolio Theme Functions & Definitions
  *
  * @package Ashwin_Krishna_Portfolio
- * @version 1.1.0
+ * @version 1.2.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -11,7 +11,43 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /* --------------------------------------------------------------------------
-   1. THEME SETUP
+   1. GMAIL SMTP AUTHENTICATION CONFIGURATION
+   -------------------------------------------------------------------------- */
+define( 'ASHWIN_SMTP_HOST', 'smtp.gmail.com' );
+define( 'ASHWIN_SMTP_PORT', 587 );
+define( 'ASHWIN_SMTP_SECURE', 'tls' );
+define( 'ASHWIN_SMTP_USER', 'ashwinkrishna70220057@gmail.com' );
+define( 'ASHWIN_SMTP_PASS', 'wavytssupqgbsefs' ); // Gmail App Password
+define( 'ASHWIN_NOTIFICATION_EMAIL', 'ashwinkrishna70220057@gmail.com' );
+
+/**
+ * Configure PHPMailer to send emails via Gmail SMTP securely
+ */
+function ashwin_configure_gmail_smtp( $phpmailer ) {
+    $phpmailer->isSMTP();
+    $phpmailer->Host       = ASHWIN_SMTP_HOST;
+    $phpmailer->SMTPAuth   = true;
+    $phpmailer->Port       = ASHWIN_SMTP_PORT;
+    $phpmailer->SMTPSecure = ASHWIN_SMTP_SECURE;
+    $phpmailer->Username   = ASHWIN_SMTP_USER;
+    $phpmailer->Password   = ASHWIN_SMTP_PASS;
+    $phpmailer->From       = ASHWIN_SMTP_USER;
+    $phpmailer->FromName   = 'Ashwin Krishna Portfolio';
+    $phpmailer->CharSet    = 'UTF-8';
+}
+add_action( 'phpmailer_init', 'ashwin_configure_gmail_smtp' );
+
+// Filter From Email & From Name for all outgoing WordPress emails
+add_filter( 'wp_mail_from', function( $original ) {
+    return ASHWIN_SMTP_USER;
+} );
+
+add_filter( 'wp_mail_from_name', function( $original ) {
+    return 'Ashwin Krishna Portfolio';
+} );
+
+/* --------------------------------------------------------------------------
+   2. THEME SETUP
    -------------------------------------------------------------------------- */
 function ashwin_portfolio_setup() {
     add_theme_support( 'title-tag' );
@@ -41,7 +77,7 @@ function ashwin_portfolio_setup() {
 add_action( 'after_setup_theme', 'ashwin_portfolio_setup' );
 
 /* --------------------------------------------------------------------------
-   2. ENQUEUE STYLES & SCRIPTS
+   3. ENQUEUE STYLES & SCRIPTS
    -------------------------------------------------------------------------- */
 function ashwin_portfolio_scripts() {
     $theme_version = wp_get_theme()->get( 'Version' );
@@ -105,7 +141,7 @@ function ashwin_portfolio_scripts() {
 add_action( 'wp_enqueue_scripts', 'ashwin_portfolio_scripts' );
 
 /* --------------------------------------------------------------------------
-   3. CUSTOM POST TYPE: ENQUIRIES (WP-ADMIN DASHBOARD INTEGRATION)
+   4. CUSTOM POST TYPE: ENQUIRIES (WP-ADMIN DASHBOARD INTEGRATION)
    -------------------------------------------------------------------------- */
 function ashwin_register_enquiries_cpt() {
     $labels = array(
@@ -151,7 +187,7 @@ function ashwin_register_enquiries_cpt() {
 add_action( 'init', 'ashwin_register_enquiries_cpt', 0 );
 
 /* --------------------------------------------------------------------------
-   4. ENQUIRIES ADMIN MENU NOTIFICATION BADGE
+   5. ENQUIRIES ADMIN MENU NOTIFICATION BADGE
    -------------------------------------------------------------------------- */
 function ashwin_enquiry_admin_menu_badge() {
     global $menu;
@@ -168,7 +204,7 @@ function ashwin_enquiry_admin_menu_badge() {
 add_action( 'admin_menu', 'ashwin_enquiry_admin_menu_badge' );
 
 /* --------------------------------------------------------------------------
-   5. CUSTOM ADMIN COLUMNS FOR ENQUIRIES
+   6. CUSTOM ADMIN COLUMNS FOR ENQUIRIES
    -------------------------------------------------------------------------- */
 function ashwin_enquiry_custom_columns( $columns ) {
     $new_columns = array(
@@ -216,7 +252,7 @@ function ashwin_enquiry_custom_column_data( $column, $post_id ) {
 add_action( 'manage_portfolio_enquiry_posts_custom_column', 'ashwin_enquiry_custom_column_data', 10, 2 );
 
 /* --------------------------------------------------------------------------
-   6. ENQUIRY DETAILS META BOX IN WP-ADMIN
+   7. ENQUIRY DETAILS META BOX IN WP-ADMIN
    -------------------------------------------------------------------------- */
 function ashwin_add_enquiry_meta_boxes() {
     add_meta_box(
@@ -268,7 +304,7 @@ function ashwin_render_enquiry_details_metabox( $post ) {
 
         <div style="margin-top:20px; display:flex; gap:10px;">
             <a href="mailto:<?php echo esc_attr( $email ); ?>?subject=Re: <?php echo esc_attr( $subject ); ?>" class="button button-primary button-large" style="background:#0284c7; border-color:#0284c7;">
-                <span class="dashicons dashicons-email-alt" style="vertical-align:middle; margin-right:4px;"></span> Reply via Email
+                <span class="dashicons dashicons-email-alt" style="vertical-align:middle; margin-right:4px;"></span> Reply to <?php echo esc_html( $name ? $name : 'Sender' ); ?>
             </a>
             <a href="<?php echo esc_url( admin_url( 'edit.php?post_type=portfolio_enquiry' ) ); ?>" class="button button-large">
                 &larr; Back to All Enquiries
@@ -279,7 +315,7 @@ function ashwin_render_enquiry_details_metabox( $post ) {
 }
 
 /* --------------------------------------------------------------------------
-   7. DASHBOARD WIDGET: RECENT ENQUIRIES
+   8. DASHBOARD WIDGET: RECENT ENQUIRIES
    -------------------------------------------------------------------------- */
 function ashwin_add_dashboard_enquiries_widget() {
     wp_add_dashboard_widget(
@@ -322,7 +358,7 @@ function ashwin_render_dashboard_enquiries_widget() {
 }
 
 /* --------------------------------------------------------------------------
-   8. AJAX CONTACT FORM SUBMISSION HANDLER
+   9. AJAX CONTACT FORM SUBMISSION & GMAIL NOTIFICATION HANDLER
    -------------------------------------------------------------------------- */
 function ashwin_handle_contact_submission() {
     check_ajax_referer( 'ashwin_contact_nonce', 'nonce' );
@@ -358,28 +394,56 @@ function ashwin_handle_contact_submission() {
         update_post_meta( $post_id, '_enquiry_status', 'unread' );
     }
 
-    // 2. Dispatch Email notification
-    $to        = get_option( 'admin_email' );
-    $mail_sub  = sprintf( '[Portfolio Enquiry] %s - %s', $subject, $name );
-    $mail_body = "New contact enquiry submitted on Ashwin Krishna's portfolio website:\n\n";
-    $mail_body .= "Name: " . $name . "\n";
-    $mail_body .= "Email: " . $email . "\n";
-    $mail_body .= "Purpose: " . $subject . "\n\n";
-    $mail_body .= "Message:\n" . $message . "\n\n";
-    $mail_body .= "---\nView and manage all enquiries in your WordPress Dashboard:\n" . admin_url( 'edit.php?post_type=portfolio_enquiry' ) . "\n";
-    $headers   = array( 'Content-Type: text/plain; charset=UTF-8', 'Reply-To: ' . $name . ' <' . $email . '>' );
+    // 2. Dispatch Email notification directly to ashwinkrishna70220057@gmail.com via Gmail SMTP
+    $to = ASHWIN_NOTIFICATION_EMAIL;
+    $mail_sub = sprintf( '⚡ New Portfolio Enquiry: %s — %s', $subject, $name );
+    
+    // HTML Email Template
+    $mail_html  = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:#07080b; color:#f8fafc; padding:30px; margin:0;">';
+    $mail_html .= '<div style="max-width:600px; margin:0 auto; background:#0f172a; border-radius:12px; border:1px solid rgba(255,255,255,0.1); overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.5);">';
+    $mail_html .= '<div style="background:linear-gradient(135deg, #00f2fe, #0284c7); padding:24px; text-align:center;">';
+    $mail_html .= '<h2 style="margin:0; color:#090a0f; font-size:22px; font-weight:800; letter-spacing:-0.02em;">Ashwin Krishna &bull; New Portfolio Enquiry</h2>';
+    $mail_html .= '</div>';
+    $mail_html .= '<div style="padding:28px;">';
+    $mail_html .= '<p style="font-size:15px; color:#94a3b8; margin-top:0;">You have received a new contact inquiry from your website:</p>';
+    
+    $mail_html .= '<div style="background:#1e293b; padding:18px; border-radius:8px; margin-bottom:20px;">';
+    $mail_html .= '<p style="margin:0 0 10px 0; color:#f1f5f9;"><strong>👤 Sender:</strong> ' . esc_html( $name ) . '</p>';
+    $mail_html .= '<p style="margin:0 0 10px 0; color:#f1f5f9;"><strong>✉️ Email:</strong> <a href="mailto:' . esc_attr( $email ) . '" style="color:#00f2fe; text-decoration:none;">' . esc_html( $email ) . '</a></p>';
+    $mail_html .= '<p style="margin:0; color:#f1f5f9;"><strong>🎯 Purpose:</strong> <span style="background:rgba(0,242,254,0.15); color:#00f2fe; padding:2px 8px; border-radius:4px; font-weight:600;">' . esc_html( $subject ) . '</span></p>';
+    $mail_html .= '</div>';
 
-    wp_mail( $to, $mail_sub, $mail_body, $headers );
+    $mail_html .= '<h4 style="margin:0 0 10px 0; color:#cbd5e1; font-size:14px; text-transform:uppercase; letter-spacing:0.05em;">Message:</h4>';
+    $mail_html .= '<div style="background:#1e293b; border-left:4px solid #00f2fe; padding:16px; border-radius:4px; font-size:15px; line-height:1.7; color:#f1f5f9; white-space:pre-wrap; margin-bottom:24px;">' . esc_html( $message ) . '</div>';
+
+    $mail_html .= '<div style="text-align:center; padding-top:10px;">';
+    $mail_html .= '<a href="mailto:' . esc_attr( $email ) . '?subject=Re: ' . esc_attr( $subject ) . '" style="display:inline-block; background:linear-gradient(135deg, #00f2fe, #0284c7); color:#090a0f; font-weight:700; padding:12px 24px; border-radius:30px; text-decoration:none; margin-right:10px;">Reply to ' . esc_html( $name ) . ' &rarr;</a>';
+    $mail_html .= '<a href="' . esc_url( admin_url( 'edit.php?post_type=portfolio_enquiry' ) ) . '" style="display:inline-block; background:rgba(255,255,255,0.08); color:#f8fafc; font-weight:600; padding:12px 20px; border-radius:30px; text-decoration:none;">View in WP-Admin</a>';
+    $mail_html .= '</div>';
+    
+    $mail_html .= '</div>';
+    $mail_html .= '<div style="background:#0a0f1d; padding:16px; text-align:center; font-size:12px; color:#64748b; border-top:1px solid rgba(255,255,255,0.05);">';
+    $mail_html .= '&copy; ' . date('Y') . ' Ashwin Krishna Portfolio System &bull; Delivered via Gmail SMTP';
+    $mail_html .= '</div>';
+    $mail_html .= '</div></body></html>';
+
+    $headers = array(
+        'Content-Type: text/html; charset=UTF-8',
+        'Reply-To: ' . $name . ' <' . $email . '>',
+    );
+
+    // Send the notification email
+    $mail_sent = wp_mail( $to, $mail_sub, $mail_html, $headers );
 
     wp_send_json_success( array(
-        'message' => sprintf( __( 'Thank you, %s! Your enquiry regarding "%s" has been securely received and recorded. Ashwin will reply shortly.', 'ashwin-krishna-portfolio' ), esc_html( $name ), esc_html( $subject ) )
+        'message' => sprintf( __( 'Thank you, %s! Your enquiry regarding "%s" has been delivered to Ashwin Krishna (ashwinkrishna70220057@gmail.com) and recorded in the system.', 'ashwin-krishna-portfolio' ), esc_html( $name ), esc_html( $subject ) )
     ) );
 }
 add_action( 'wp_ajax_ashwin_contact', 'ashwin_handle_contact_submission' );
 add_action( 'wp_ajax_nopriv_ashwin_contact', 'ashwin_handle_contact_submission' );
 
 /* --------------------------------------------------------------------------
-   9. PERFORMANCE & SECURITY CLEANUPS
+   10. PERFORMANCE & SECURITY CLEANUPS
    -------------------------------------------------------------------------- */
 remove_action( 'wp_head', 'wp_generator' );
 remove_action( 'wp_head', 'wlwmanifest_link' );
