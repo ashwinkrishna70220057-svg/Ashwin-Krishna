@@ -380,6 +380,7 @@ body.cursor-hover .cursor-follower {
 .btn-primary-magnetic {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.6rem;
     background: linear-gradient(135deg, var(--accent-cyan) 0%, #0284c7 100%);
     color: #060913;
@@ -393,6 +394,8 @@ body.cursor-hover .cursor-follower {
     transition: transform var(--transition-fast), box-shadow var(--transition-fast), filter var(--transition-fast);
     position: relative;
     z-index: 1;
+    white-space: nowrap;
+    text-decoration: none;
 }
 
 .btn-primary-magnetic:hover {
@@ -404,6 +407,7 @@ body.cursor-hover .cursor-follower {
 .btn-secondary-glass {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.6rem;
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(10px);
@@ -415,6 +419,8 @@ body.cursor-hover .cursor-follower {
     border-radius: var(--radius-pill);
     cursor: pointer;
     transition: all var(--transition-fast);
+    white-space: nowrap;
+    text-decoration: none;
 }
 
 .btn-secondary-glass:hover {
@@ -595,6 +601,8 @@ body.cursor-hover .cursor-follower {
     display: flex;
     align-items: center;
     gap: 1.25rem;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .status-pill {
@@ -608,6 +616,8 @@ body.cursor-hover .cursor-follower {
     font-family: var(--font-mono);
     font-size: 0.75rem;
     color: var(--accent-emerald);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .pulse-dot {
